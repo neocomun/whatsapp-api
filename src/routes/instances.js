@@ -293,3 +293,34 @@ router.get('/:instanceId/status', instanceController.getStatus);
 
 module.exports = router;
 
+
+
+/**
+ * @swagger
+ * /api/v1/instances/{instanceId}/qrcode/image:
+ *   get:
+ *     summary: Obter imagem do QR Code para autenticação
+ *     tags: [Instâncias]
+ *     parameters:
+ *       - in: path
+ *         name: instanceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da instância
+ *     responses:
+ *       200:
+ *         description: Imagem do QR Code
+ *         content:
+ *           image/png:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Instância não encontrada
+ *       400:
+ *         description: QR Code não disponível
+ */
+router.get("/:instanceId/qrcode/image", instanceController.getQRCodeImage);
+
+

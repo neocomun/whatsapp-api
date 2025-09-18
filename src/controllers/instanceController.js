@@ -279,3 +279,45 @@ class InstanceController {
 
 module.exports = new InstanceController();
 
+
+
+  async getQRCodeImage(req, res) {
+    try {
+      const { instanceId } = req.params;
+      const qrCodeDataURL = whatsappService.getQRCode(instanceId);
+
+      if (!qrCodeDataURL) {
+        return res.status(400).json({
+          success: false,
+          error: 'QR Code não disponível. Conecte a instância primeiro.'
+        });
+      }
+
+      // Extrair o tipo de imagem e os dados base64
+      const matches = qrCodeDataURL.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (!matches || matches.length !== 3) {
+        return res.status(500).json({
+          success: false,
+          error: 'Formato de QR Code inválido.'
+        });
+      }
+
+      const imageType = matches[1];
+      const base64Data = matches[2];
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+
+      res.writeHead(200, {
+        'Content-Type': imageType,
+        'Content-Length': imageBuffer.length
+      });
+      res.end(imageBuffer);
+
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+
