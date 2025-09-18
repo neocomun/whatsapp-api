@@ -76,7 +76,18 @@ class WhatsAppService {
 
     try {
       const sessionDir = path.join(this.sessionsDir, instanceId);
+      console.log(`[${instanceId}] Tentando conectar. Diretório de sessão: ${sessionDir}`);
+
+      // Garante que o diretório de sessão exista
+      if (!fs.existsSync(sessionDir)) {
+        fs.mkdirSync(sessionDir, { recursive: true });
+        console.log(`[${instanceId}] Diretório de sessão criado: ${sessionDir}`);
+      }
+
+      console.log(`[${instanceId}] Carregando estado de autenticação...`);
       const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+      console.log(`[${instanceId}] Estado de autenticação carregado. Credenciais salvas: ${Object.keys(state.creds).length > 0}`);
+
       const { version } = await fetchLatestBaileysVersion();
 
       const socket = makeWASocket({
@@ -103,7 +114,14 @@ class WhatsAppService {
         await this.handleConnectionUpdate(instanceId, update);
       });
 
-      socket.ev.on('creds.update', saveCreds);
+      socket.ev.on("creds.update", async () => {
+        try {
+          await saveCreds();
+          console.log(`[${instanceId}] Credenciais salvas com sucesso.`);
+        } catch (error) {
+          console.error(`[${instanceId}] Erro ao salvar credenciais:`, error);
+        }
+      });
 
       socket.ev.on('messages.upsert', async (m) => {
         await this.handleMessages(instanceId, m);
@@ -130,6 +148,7 @@ class WhatsAppService {
     if (!instance) return;
 
     const { connection, lastDisconnect, qr } = update;
+    console.log(`[${instanceId}] Connection update: connection=${connection}, qr=${qr ? 'disponível' : 'não disponível'}`);
 
     if (qr) {
       try {
@@ -137,17 +156,20 @@ class WhatsAppService {
         instance.qrCode = qrCodeDataURL;
         instance.status = 'qr_code';
         this.qrCodes.set(instanceId, qrCodeDataURL);
+        console.log(`[${instanceId}] QR Code gerado e armazenado.`);
         
         await this.sendWebhookEvent(instanceId, 'qr', {
           qrCode: qrCodeDataURL,
           qrString: qr
         });
       } catch (error) {
-        console.error('Erro ao gerar QR Code:', error);
+        console.error(`[${instanceId}] Erro ao gerar QR Code:`, error);
       }
     }
 
     if (connection === 'close') {
+      console.log(`[${instanceId}] Conexão fechada. Última desconexão:`, lastDisconnect);
+
       const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
       
       instance.status = 'disconnected';
@@ -155,9 +177,16 @@ class WhatsAppService {
       instance.qrCode = null;
       instance.phone = null;
       
-      // Não deletar qrCodes e pairingCodes imediatamente para permitir reconexão
-      // this.qrCodes.delete(instanceId);
-      // this.pairingCodes.delete(instanceId);
+      // Se for um logout explícito, limpar os dados de QR/Pairing Code e remover a instância do mapa
+      if (lastDisconnect?.error?.output?.statusCode === DisconnectReason.loggedOut) {
+        console.log(`Instância ${instanceId} fez logout. Removendo dados de sessão.`);
+        this.qrCodes.delete(instanceId);
+        this.pairingCodes.delete(instanceId);
+        this.instances.delete(instanceId); // Remover a instância do mapa
+      } else {
+        // Se não for um logout explícito, manter a instância no mapa para tentar reconectar
+        console.log(`Instância ${instanceId} desconectada por outro motivo. Mantendo no mapa para reconexão.`);
+      }
 
       await this.sendWebhookEvent(instanceId, 'disconnected', {
         reason: lastDisconnect?.error?.output?.statusCode,
