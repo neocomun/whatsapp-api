@@ -275,12 +275,6 @@ class InstanceController {
       });
     }
   }
-}
-
-module.exports = new InstanceController();
-
-
-
   async getQRCodeImage(req, res) {
     try {
       const { instanceId } = req.params;
@@ -319,5 +313,6 @@ module.exports = new InstanceController();
       });
     }
   }
+}
 
-
+module.exports = new InstanceController();
