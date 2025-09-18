@@ -115,6 +115,7 @@ class WhatsAppService {
       });
 
       socket.ev.on("creds.update", async () => {
+        console.log(`[${instanceId}] creds.update event disparado. Tentando salvar credenciais...`);
         try {
           await saveCreds();
           console.log(`[${instanceId}] Credenciais salvas com sucesso.`);
@@ -179,13 +180,13 @@ class WhatsAppService {
       
       // Se for um logout explícito, limpar os dados de QR/Pairing Code e remover a instância do mapa
       if (lastDisconnect?.error?.output?.statusCode === DisconnectReason.loggedOut) {
-        console.log(`Instância ${instanceId} fez logout. Removendo dados de sessão.`);
+        console.log(`[${instanceId}] Instância fez logout. Removendo dados de sessão e instância do mapa.`);
         this.qrCodes.delete(instanceId);
         this.pairingCodes.delete(instanceId);
         this.instances.delete(instanceId); // Remover a instância do mapa
       } else {
         // Se não for um logout explícito, manter a instância no mapa para tentar reconectar
-        console.log(`Instância ${instanceId} desconectada por outro motivo. Mantendo no mapa para reconexão.`);
+        console.log(`[${instanceId}] Instância desconectada por outro motivo. Mantendo no mapa para reconexão.`);
       }
 
       await this.sendWebhookEvent(instanceId, 'disconnected', {
