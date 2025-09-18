@@ -9,7 +9,8 @@ const {
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require("uuid");
+const { Buffer } = require("buffer");
 
 class WhatsAppService {
   constructor() {
@@ -154,8 +155,9 @@ class WhatsAppService {
       instance.qrCode = null;
       instance.phone = null;
       
-      this.qrCodes.delete(instanceId);
-      this.pairingCodes.delete(instanceId);
+      // Não deletar qrCodes e pairingCodes imediatamente para permitir reconexão
+      // this.qrCodes.delete(instanceId);
+      // this.pairingCodes.delete(instanceId);
 
       await this.sendWebhookEvent(instanceId, 'disconnected', {
         reason: lastDisconnect?.error?.output?.statusCode,
@@ -163,10 +165,18 @@ class WhatsAppService {
       });
 
       if (shouldReconnect) {
-        console.log(`Reconectando instância ${instanceId}...`);
-        setTimeout(() => {
-          this.connectInstance(instanceId).catch(console.error);
+        console.log(`Instância ${instanceId} desconectada. Tentando reconectar em 3 segundos...`);
+        setTimeout(async () => {
+          try {
+            // Tentar reconectar a instância
+            await this.connectInstance(instanceId);
+            console.log(`Instância ${instanceId} reconectada com sucesso.`);
+          } catch (reconnectError) {
+            console.error(`Erro ao reconectar instância ${instanceId}:`, reconnectError.message);
+          }
         }, 3000);
+      } else {
+        console.log(`Instância ${instanceId} desconectada permanentemente (logged out).`);
       }
     } else if (connection === 'open') {
       instance.status = 'connected';
