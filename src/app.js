@@ -24,10 +24,10 @@ const swaggerOptions = {
       }
     },
     servers: [
-      {
+      ...(process.env.NODE_ENV !== 'development' ? [{
         url: `https://3000-i7kegxjyxjdjay87ccx6g-a2910c06.manus.computer`,
         description: 'Servidor público'
-      },
+      }] : []),
       {
         url: `http://localhost:${PORT}`,
         description: 'Servidor de desenvolvimento'
